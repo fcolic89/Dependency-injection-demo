@@ -19,13 +19,17 @@ public class DIEngine {
     private String packageName = "server.components";
     public static Map<String, Object> singletons = new HashMap<>();
     public static Map<StringPair, StringPair> routes= new HashMap<>();
-    public static List<Class> controllers = new ArrayList<>();
+    public static List<Class<?>> controllers = new ArrayList<>();
     private List<String> classes = new ArrayList<>();
-    private Map<String, Class> dependencyContainer = new HashMap<>();
+    private Map<String, Class<?>> dependencyContainer = new HashMap<>();
 
     public DIEngine(){
-        this.classes.addAll(getClassNames());
-        init();
+        List<String> tmp = getClassNames();
+        if(tmp != null) {
+            this.classes.addAll(tmp);
+            init();
+        }
+        else throw new DependencyEngineException();
     }
 
     private void init(){
@@ -79,7 +83,7 @@ public class DIEngine {
                             if (m.isAnnotationPresent(Post.class))
                                 key = new StringPair("POST", m.getAnnotation(Path.class).path());
 
-                            if(DIEngine.routes.keySet().contains(key))
+                            if(DIEngine.routes.containsKey(key))
                                 throw new ExistingMethodAndPathException(cls.getName());
                             else DIEngine.routes.put(key, value);
                         }
@@ -94,66 +98,60 @@ public class DIEngine {
     private Object dependencyInjection(Class<?> cls, Object obj){
         Field[] fields = cls.getDeclaredFields();
 
-        for(Field f: fields){
-            if(f.isAnnotationPresent(Autowired.class)){
-                try{
+        for(Field f: fields) {
+            if (f.isAnnotationPresent(Autowired.class)) {
+                try {
                     Class<?> fieldClass = f.getType();
 
                     //Primitive type check
-                    if(fieldClass.isPrimitive())
+                    if (fieldClass.isPrimitive())
                         throw new AutowiredPrimitiveException(cls);
 
                     //Qualifier check
-                    if(fieldClass.isInterface()){
-                        if(f.isAnnotationPresent(Qualifier.class)){
+                    if (fieldClass.isInterface()) {
+                        if (f.isAnnotationPresent(Qualifier.class)) {
                             Class<?> cls1 = dependencyContainer.get(f.getAnnotation(Qualifier.class).value());
-                            if(cls1 == null) throw new InvalidQualifierException(cls.getName(), f.getName());
+                            if (cls1 == null) throw new InvalidQualifierException(cls.getName(), f.getName());
 
                             fieldClass = cls1;
-                        }else{
+                        } else {
                             throw new AutowiredMissingQualifierException(cls.getName(), f.getName());
                         }
                     }
 
                     //Instancing object
                     Object fieldObject = null;
-                    if(fieldClass.isAnnotationPresent(Service.class) ||
-                            (fieldClass.isAnnotationPresent(Bean.class) && fieldClass.getAnnotation(Bean.class).scope().equals("singleton"))){
+                    if (fieldClass.isAnnotationPresent(Service.class) ||
+                            (fieldClass.isAnnotationPresent(Bean.class) && fieldClass.getAnnotation(Bean.class).scope().equals("singleton"))) {
                         String[] name = fieldClass.getName().split("\\.");
-                        if(DIEngine.singletons.containsKey(name[name.length-1]))
-                            fieldObject = DIEngine.singletons.get(name[name.length-1]);
-                        else{
+                        if (DIEngine.singletons.containsKey(name[name.length - 1]))
+                            fieldObject = DIEngine.singletons.get(name[name.length - 1]);
+                        else {
                             fieldObject = fieldClass.getConstructor().newInstance();
-                            DIEngine.singletons.put(name[name.length-1], fieldObject);
+                            DIEngine.singletons.put(name[name.length - 1], fieldObject);
                         }
-                    }
-                    else if(fieldClass.isAnnotationPresent(Component.class) ||
-                            (fieldClass.isAnnotationPresent(Bean.class) && fieldClass.getAnnotation(Bean.class).scope().equals("prototype"))){
+                    } else if (fieldClass.isAnnotationPresent(Component.class) ||
+                            (fieldClass.isAnnotationPresent(Bean.class) && fieldClass.getAnnotation(Bean.class).scope().equals("prototype"))) {
                         fieldObject = fieldClass.getConstructor().newInstance();
                     }
-                    if(fieldObject == null)
+                    if (fieldObject == null)
                         throw new AutowiredBeanException(fieldClass);
 
                     //Instancing objects dependencies
                     fieldObject = dependencyInjection(fieldClass, fieldObject);
+                    if(fieldObject == null)
+                        throw new LoadingDependencyException(fieldClass);
 
                     //Injecting object
                     f.setAccessible(true);
                     f.set(obj, fieldObject);
-                    if(f.getAnnotation(Autowired.class).verbose())
-                        System.out.println("Initialized <" + f.getType().toString().split(" ")[0] +"> <" + fieldClass.getName() + "> in <" + cls.getName() + "> on <" + (LocalDateTime.now()) + "> with <" + fieldObject.hashCode() + ">");
+                    if (f.getAnnotation(Autowired.class).verbose())
+                        System.out.println("Initialized <" + f.getType().toString().split(" ")[0] + "> <" + fieldClass.getName() + "> in <" + cls.getName() + "> on <" + (LocalDateTime.now()) + "> with <" + fieldObject.hashCode() + ">");
 
-                } catch (InvocationTargetException e) {
-                    throw new LoadingDependencyException(cls);
-//                    throw new RuntimeException(e);
-                } catch (InstantiationException e) {
-                    throw new LoadingDependencyException(cls);
-//                    throw new RuntimeException(e);
-                } catch (IllegalAccessException e) {
-                    throw new LoadingDependencyException(cls);
-//                    throw new RuntimeException(e);
-                } catch (NoSuchMethodException e) {
-                    throw new LoadingDependencyException(cls);
+                } catch (InvocationTargetException | InstantiationException
+                         | IllegalAccessException | NoSuchMethodException e) {
+                    return null;
+//                    throw new LoadingDependencyException(cls);
 //                    throw new RuntimeException(e);
                 }
             }
@@ -164,8 +162,12 @@ public class DIEngine {
     private List<String> getClassNames(){
 
         InputStream stream = ClassLoader.getSystemClassLoader()
-                .getResourceAsStream(packageName.replaceAll("[.]", "/"));
-        BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
+                .getResourceAsStream(packageName.replaceAll("\\.", "/"));
+        BufferedReader reader;
+        if(stream != null)
+           reader  = new BufferedReader(new InputStreamReader(stream));
+        else
+            return null;
 
         return reader.lines()
                 .filter(line -> line.endsWith(".class"))

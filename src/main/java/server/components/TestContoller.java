@@ -9,7 +9,7 @@ public class TestContoller {
     AutowiredTest at;
 
     @Autowired
-    @Qualifier(value = "test")
+//    @Qualifier(value = "test")
     QualifierTestInt q;
 
     @Get
