@@ -57,12 +57,11 @@ public class ServerThread implements Runnable{
 //            responseMap.put("parameters", request.getParameters());
 //            Response response = new JsonResponse(responseMap);
             boolean err = true;
-            StringPair classPair = Server.routes.get(new StringPair(request.getMethod().toString(), request.getLocation()));
+            StringPair classPair = DIEngine.routes.get(new StringPair(request.getMethod().toString(), request.getLocation()));
             if(classPair != null) {
-                Object obj = Server.singletons.get(classPair.getFirst());
-                for (Class c : Server.controllers) {
+                Object obj = DIEngine.singletons.get(classPair.getFirst());
+                for (Class c : DIEngine.controllers) {
                     if (c.isInstance(obj)) {
-                        System.out.println("jeste ista klasa, ime: " + c.getName());
                         out.println(c.getDeclaredMethod(classPair.getSecond()).invoke(obj));
                         err = false;
                         break;

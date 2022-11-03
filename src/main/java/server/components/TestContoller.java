@@ -1,11 +1,15 @@
 package server.components;
 
+import framework.core.annotations.Autowired;
 import framework.core.annotations.Controller;
 import framework.core.annotations.Get;
 import framework.core.annotations.Path;
 
 @Controller
 public class TestContoller {
+
+    @Autowired
+    AutowiredTest at;
 
     @Get
     @Path(path = "/test1")
@@ -14,8 +18,8 @@ public class TestContoller {
     }
 
     @Get
-    @Path(path = "/test1")
+    @Path(path = "/test2")
     public String test12(){
-        return "Test2";
+        return at.radi();
     }
 }

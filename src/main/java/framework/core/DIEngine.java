@@ -1,22 +1,27 @@
 package framework.core;
 
-import framework.core.annotations.Controller;
-import framework.core.annotations.Get;
-import framework.core.annotations.Path;
-import framework.core.annotations.Post;
+import framework.core.annotations.*;
 import framework.core.model.StringPair;
+import framework.request.exceptions.AutowiredBeanException;
+import framework.request.exceptions.AutowiredPrimitiveException;
 import framework.request.exceptions.ExistingMethodAndPathException;
-import server.Server;
+import framework.request.exceptions.LoadingDependencyException;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.LocalDateTime;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class DIEngine {
+
+    public static Map<String, Object> singletons = new HashMap<>();
+    public static Map<StringPair, StringPair> routes= new HashMap<>();
+    public static List<Class> controllers = new ArrayList<>();
 
     private String packageName = "server.components";
     private List<String> classes = new ArrayList<>();
@@ -35,11 +40,14 @@ public class DIEngine {
         for (String comp : classes) {
             try {
                 Class<?> cls = Class.forName(packageName + "." + comp);
-
                 if(cls.isAnnotationPresent(Controller.class)){
-                    Server.singletons.put(comp, cls.getConstructor().newInstance());
-                    if(!Server.controllers.contains(cls))
-                        Server.controllers.add(cls);
+
+                    Object controller = dependencyInjection(cls, cls.getConstructor().newInstance());
+                    if(controller == null)
+                        continue;
+                    DIEngine.singletons.put(comp, controller);
+                    if(!DIEngine.controllers.contains(cls))
+                        DIEngine.controllers.add(cls);
                     //instanciranje putanji
                     Method[] methods = cls.getDeclaredMethods();
                     for(Method m: methods){
@@ -52,9 +60,9 @@ public class DIEngine {
                             if (m.isAnnotationPresent(Post.class))
                                 key = new StringPair("POST", m.getAnnotation(Path.class).path());
 
-                            if(Server.routes.keySet().contains(key))
+                            if(DIEngine.routes.keySet().contains(key))
                                 throw new ExistingMethodAndPathException(cls.getName());
-                            else Server.routes.put(key, value);
+                            else DIEngine.routes.put(key, value);
                         }
                     }
                 }
@@ -64,8 +72,57 @@ public class DIEngine {
         }
     }
 
-    private void dependencyInjection(){
+    private Object dependencyInjection(Class cls, Object obj){
+        Field[] fields = cls.getDeclaredFields();
 
+        for(Field f: fields){
+            if(f.isAnnotationPresent(Autowired.class)){
+                try{
+                    Class<?> fieldClass = f.getType();
+                    if(fieldClass.isPrimitive())
+                        throw new AutowiredPrimitiveException(cls);
+
+
+                    Object fieldObject = null;
+                    if(fieldClass.isAnnotationPresent(Service.class) ||
+                            (fieldClass.isAnnotationPresent(Bean.class) && fieldClass.getAnnotation(Bean.class).scope().equals("singleton"))){
+                        String[] name = fieldClass.getName().split("\\.");
+                        if(DIEngine.singletons.containsKey(name[name.length-1]))
+                            fieldObject = DIEngine.singletons.get(name[name.length-1]);
+                        else{
+                            fieldObject = fieldClass.getConstructor().newInstance();
+                            DIEngine.singletons.put(name[name.length-1], fieldObject);
+                        }
+                    }
+                    else if(fieldClass.isAnnotationPresent(Component.class) ||
+                            (fieldClass.isAnnotationPresent(Bean.class) && fieldClass.getAnnotation(Bean.class).scope().equals("prototype"))){
+                        fieldObject = fieldClass.getConstructor().newInstance();
+                    }
+                    if(fieldObject == null)
+                        throw new AutowiredBeanException(fieldClass);
+
+                    fieldObject = dependencyInjection(fieldClass, fieldObject);
+                    f.setAccessible(true);
+                    f.set(obj, fieldObject);
+                    if(f.getAnnotation(Autowired.class).verbose())
+                        System.out.println("Initialized <" + f.getType().toString().split(" ")[0] +"> <" + fieldClass.getName() + "> in <" + cls.getName() + "> on <" + (LocalDateTime.now()) + "> with <" + fieldObject.hashCode() + ">");
+
+                } catch (InvocationTargetException e) {
+                    throw new LoadingDependencyException(cls);
+//                    throw new RuntimeException(e);
+                } catch (InstantiationException e) {
+                    throw new LoadingDependencyException(cls);
+//                    throw new RuntimeException(e);
+                } catch (IllegalAccessException e) {
+                    throw new LoadingDependencyException(cls);
+//                    throw new RuntimeException(e);
+                } catch (NoSuchMethodException e) {
+                    throw new LoadingDependencyException(cls);
+//                    throw new RuntimeException(e);
+                }
+            }
+        }
+        return obj;
     }
 
     private List<String> getClassNames(){

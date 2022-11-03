@@ -12,11 +12,6 @@ import java.util.List;
 import java.util.Map;
 
 public class Server {
-
-    public static Map<String, Object> singletons = new HashMap<>();
-    public static Map<StringPair, StringPair> routes= new HashMap<>();
-
-    public static List<Class> controllers = new ArrayList<>();
     public static final int TCP_PORT = 8080;
 
     public static void main(String[] args) throws IOException {
