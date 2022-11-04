@@ -53,12 +53,9 @@ public class ServerThread implements Runnable{
             StringPair classPair = DIEngine.routes.get(new StringPair(request.getMethod().toString(), request.getLocation()));
             if(classPair != null) {
                 Object obj = DIEngine.singletons.get(classPair.getFirst());
-                for (Class<?> c : DIEngine.controllers) {
-                    if (c.isInstance(obj)) {
-                        out.println(c.getDeclaredMethod(classPair.getSecond()).invoke(obj));
-                        err = false;
-                        break;
-                    }
+                if(obj != null){
+                    out.println(obj.getClass().getDeclaredMethod(classPair.getSecond()).invoke(obj));
+                    err = false;
                 }
             }
             if(err)

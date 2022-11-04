@@ -18,10 +18,11 @@ public class DIEngine {
 
     private String packageName = "server.components";
     public static Map<String, Object> singletons = new HashMap<>();
-    //routes: key = (first = "GET", second = "/test1")
-    //routes: value = (first = "TestController, second = "test1")
+    /**
+     *  routes: key = (first = "GET", second = "/test1")
+     *  routes: value = (first = "TestController, second = "test1")
+     */
     public static Map<StringPair, StringPair> routes= new HashMap<>();
-    public static List<Class<?>> controllers = new ArrayList<>();
     private List<String> classes = new ArrayList<>();
     private Map<String, Class<?>> dependencyContainer = new HashMap<>();
 
@@ -70,8 +71,6 @@ public class DIEngine {
                     if(controller == null)
                         throw new LoadingDependencyException(cls);
                     DIEngine.singletons.put(comp, controller);
-                    if(!DIEngine.controllers.contains(cls))
-                        DIEngine.controllers.add(cls);
 
                     //Instance routes
                     Method[] methods = cls.getDeclaredMethods();
@@ -148,6 +147,7 @@ public class DIEngine {
                         fieldObject = dependencyInjection(fieldClass, fieldObject);
                     if(fieldObject == null)
                         throw new LoadingDependencyException(cls);
+
                     //Injecting object
                     f.setAccessible(true);
                     f.set(obj, fieldObject);
@@ -155,7 +155,9 @@ public class DIEngine {
                         System.out.println("Initialized <" + f.getType().toString().split(" ")[0] + "> <" + fieldClass.getName() + "> in <" + cls.getName() + "> on <" + (LocalDateTime.now()) + "> with <" + fieldObject.hashCode() + ">");
 
                 } catch (InvocationTargetException | InstantiationException
-                         | IllegalAccessException | NoSuchMethodException  | LoadingDependencyException e) {
+                         | IllegalAccessException | NoSuchMethodException
+                         | LoadingDependencyException | AutowiredBeanException | AutowiredMissingQualifierException | InvalidQualifierException | AutowiredPrimitiveException e) {
+                    e.printStackTrace();
                     return null;
 //                    throw new LoadingDependencyException(cls);
 //                    throw new RuntimeException(e);

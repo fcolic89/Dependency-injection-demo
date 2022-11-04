@@ -13,6 +13,9 @@ public class TestContoller {
     @Qualifier(value = "test")
     QualifierTestInt q;
 
+//    @Autowired
+    private int a;
+
     @Get
     @Path(path = "/test1")
     public String test1(){
