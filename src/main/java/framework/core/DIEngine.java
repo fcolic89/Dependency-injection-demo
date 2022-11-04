@@ -68,7 +68,7 @@ public class DIEngine {
                     //Instance controllers
                     Object controller = dependencyInjection(cls, cls.getConstructor().newInstance());
                     if(controller == null)
-                        continue;
+                        throw new LoadingDependencyException(cls);
                     DIEngine.singletons.put(comp, controller);
                     if(!DIEngine.controllers.contains(cls))
                         DIEngine.controllers.add(cls);
@@ -99,8 +99,10 @@ public class DIEngine {
 
     private Object dependencyInjection(Class<?> cls, Object obj){
         Field[] fields = cls.getDeclaredFields();
+        boolean makeInstance;
 
         for(Field f: fields) {
+            makeInstance = true;
             if (f.isAnnotationPresent(Autowired.class)) {
                 try {
                     Class<?> fieldClass = f.getType();
@@ -126,11 +128,13 @@ public class DIEngine {
                     if (fieldClass.isAnnotationPresent(Service.class) ||
                             (fieldClass.isAnnotationPresent(Bean.class) && fieldClass.getAnnotation(Bean.class).scope().equals("singleton"))) {
                         String[] name = fieldClass.getName().split("\\.");
-                        if (DIEngine.singletons.containsKey(name[name.length - 1]))
+                        if (DIEngine.singletons.containsKey(name[name.length - 1])) {
                             fieldObject = DIEngine.singletons.get(name[name.length - 1]);
-                        else {
+                            makeInstance = false;
+                        }else {
                             fieldObject = fieldClass.getConstructor().newInstance();
                             DIEngine.singletons.put(name[name.length - 1], fieldObject);
+
                         }
                     } else if (fieldClass.isAnnotationPresent(Component.class) ||
                             (fieldClass.isAnnotationPresent(Bean.class) && fieldClass.getAnnotation(Bean.class).scope().equals("prototype"))) {
@@ -140,10 +144,10 @@ public class DIEngine {
                         throw new AutowiredBeanException(fieldClass);
 
                     //Instancing objects dependencies
-                    fieldObject = dependencyInjection(fieldClass, fieldObject);
+                    if(makeInstance)
+                        fieldObject = dependencyInjection(fieldClass, fieldObject);
                     if(fieldObject == null)
-                        throw new LoadingDependencyException(fieldClass);
-
+                        throw new LoadingDependencyException(cls);
                     //Injecting object
                     f.setAccessible(true);
                     f.set(obj, fieldObject);
@@ -151,7 +155,7 @@ public class DIEngine {
                         System.out.println("Initialized <" + f.getType().toString().split(" ")[0] + "> <" + fieldClass.getName() + "> in <" + cls.getName() + "> on <" + (LocalDateTime.now()) + "> with <" + fieldObject.hashCode() + ">");
 
                 } catch (InvocationTargetException | InstantiationException
-                         | IllegalAccessException | NoSuchMethodException e) {
+                         | IllegalAccessException | NoSuchMethodException  | LoadingDependencyException e) {
                     return null;
 //                    throw new LoadingDependencyException(cls);
 //                    throw new RuntimeException(e);

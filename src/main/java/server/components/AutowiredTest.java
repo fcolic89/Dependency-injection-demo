@@ -7,7 +7,7 @@ import framework.core.annotations.Service;
 
 //@Bean(scope = "singleton")
 //@Bean(scope = "prototype")
-@Service
+//@Service
 //@Component
 public class AutowiredTest {
 

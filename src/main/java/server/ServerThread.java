@@ -48,12 +48,7 @@ public class ServerThread implements Runnable{
                 return;
             }
 
-            // Response example
-//            Map<String, Object> responseMap = new HashMap<>();
-//            responseMap.put("route_location", request.getLocation());
-//            responseMap.put("route_method", request.getMethod().toString());
-//            responseMap.put("parameters", request.getParameters());
-//            Response response = new HttpResponse(responseMap);
+            //Finding the correct controller or returning error 404
             boolean err = true;
             StringPair classPair = DIEngine.routes.get(new StringPair(request.getMethod().toString(), request.getLocation()));
             if(classPair != null) {
