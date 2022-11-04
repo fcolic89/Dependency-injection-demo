@@ -5,6 +5,7 @@ import framework.core.annotations.Autowired;
 import framework.core.annotations.Controller;
 import framework.core.annotations.Get;
 import framework.core.annotations.Path;
+import framework.response.HttpResponse;
 
 @Controller
 public class Delete {
@@ -15,6 +16,6 @@ public class Delete {
     @Get
     @Path(path = "/delete")
     public String delete(){
-        return "delete radi! i " + at.radi() + "i velicina singleton-a je: " + DIEngine.singletons.size();
+        return HttpResponse.ok( "delete radi! i " + at.radi() + "i velicina singleton-a je: " + DIEngine.singletons.size());
     }
 }

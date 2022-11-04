@@ -18,6 +18,8 @@ public class DIEngine {
 
     private String packageName = "server.components";
     public static Map<String, Object> singletons = new HashMap<>();
+    //routes: key = (first = "GET", second = "/test1")
+    //routes: value = (first = "TestController, second = "test1")
     public static Map<StringPair, StringPair> routes= new HashMap<>();
     public static List<Class<?>> controllers = new ArrayList<>();
     private List<String> classes = new ArrayList<>();

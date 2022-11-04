@@ -2,8 +2,7 @@ package server;
 
 import framework.core.DIEngine;
 import framework.core.model.StringPair;
-import framework.response.JsonResponse;
-import framework.response.Response;
+import framework.response.HttpResponse;
 import framework.request.enums.Method;
 import framework.request.Header;
 import framework.request.Helper;
@@ -14,7 +13,6 @@ import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.net.Socket;
 import java.util.HashMap;
-import java.util.Map;
 
 public class ServerThread implements Runnable{
 
@@ -55,12 +53,12 @@ public class ServerThread implements Runnable{
 //            responseMap.put("route_location", request.getLocation());
 //            responseMap.put("route_method", request.getMethod().toString());
 //            responseMap.put("parameters", request.getParameters());
-//            Response response = new JsonResponse(responseMap);
+//            Response response = new HttpResponse(responseMap);
             boolean err = true;
             StringPair classPair = DIEngine.routes.get(new StringPair(request.getMethod().toString(), request.getLocation()));
             if(classPair != null) {
                 Object obj = DIEngine.singletons.get(classPair.getFirst());
-                for (Class c : DIEngine.controllers) {
+                for (Class<?> c : DIEngine.controllers) {
                     if (c.isInstance(obj)) {
                         out.println(c.getDeclaredMethod(classPair.getSecond()).invoke(obj));
                         err = false;
@@ -69,7 +67,7 @@ public class ServerThread implements Runnable{
                 }
             }
             if(err)
-            out.println("There was an error!");
+                out.println(HttpResponse.notFound());
 
             in.close();
             out.close();
