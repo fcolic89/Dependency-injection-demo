@@ -16,7 +16,6 @@ public class TestContoller {
     @Get
     @Path(path = "/test1")
     public String test1(){
-        System.out.println(HttpResponse.ok("Test1"));
         return HttpResponse.ok("Test1");
     }
 
